@@ -1,0 +1,3 @@
+[submodule "vendor/touying"]
+	path = vendor/touying
+	url = https://github.com/touying-typ/touying.git
