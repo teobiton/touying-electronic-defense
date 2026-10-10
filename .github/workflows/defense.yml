@@ -1,0 +1,80 @@
+name: Defense
+
+on:
+  push:
+    branches: ["**"]
+    paths: ["**/*.typ"]
+  pull_request:
+    paths: ["**/*.typ"]
+
+permissions:
+  contents: read
+
+env:
+  TYPST_ENTRY: defense.typ
+  TYPSTYLE_VERSION: "0.15.1"
+  TYPST_VERSION: "0.15.1"
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache typstyle
+        id: cache-typstyle
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/typstyle
+          key: typstyle-${{ runner.os }}-${{ env.TYPSTYLE_VERSION }}
+
+      - name: Install typstyle
+        if: steps.cache-typstyle.outputs.cache-hit != 'true'
+        run: cargo install typstyle --version "$TYPSTYLE_VERSION" --locked
+
+      - name: Check formatting
+        run: typstyle --verbose --check defense.typ globals.typ slides master
+
+  build:
+    needs: format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Install fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-linuxlibertine
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache typst
+        id: cache-typst
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/typst
+          key: typst-cli-${{ runner.os }}-${{ env.TYPST_VERSION }}
+
+      - name: Install typst
+        if: steps.cache-typst.outputs.cache-hit != 'true'
+        run: cargo install typst-cli --version "$TYPST_VERSION" --locked
+
+      - name: Set output file name
+        env:
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: echo "TYPST_OUTPUT=defense-${SHA::8}.pdf" >> "$GITHUB_ENV"
+
+      - name: Compile
+        run: typst compile "$TYPST_ENTRY" "$TYPST_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TYPST_OUTPUT }}
+          path: ${{ env.TYPST_OUTPUT }}
+          retention-days: 7

@@ -1,0 +1,25 @@
+default_install_hook_types:
+  - pre-push
+
+repos:
+  - repo: local
+    hooks:
+      - id: typstyle-check
+        name: typstyle (format check)
+        description: Fail if any .typ file is not formatted per typstyle.
+        entry: typstyle --check defense.typ globals.typ slides master
+        language: system
+        pass_filenames: false
+        types: [file]
+        files: \.typ$
+        stages: [pre-push]
+
+      - id: typst-build
+        name: typst (build check)
+        description: Fail if the typst project does not compile.
+        entry: bash -c 'typst compile "${TYPST_ENTRY:-defense.typ}" /tmp/precommit-check.pdf'
+        language: system
+        pass_filenames: false
+        types: [file]
+        files: \.typ$
+        stages: [pre-push]

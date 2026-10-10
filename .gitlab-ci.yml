@@ -1,0 +1,48 @@
+stages:
+  - format
+  - build
+
+variables:
+  TYPST_ENTRY: "defense.typ"
+  TYPST_OUTPUT: "defense-$CI_COMMIT_SHORT_SHA.pdf"
+  TYPSTYLE_VERSION: "0.15.1"
+  TYPST_VERSION: "0.15.1"
+  CARGO_HOME: "$CI_PROJECT_DIR/.cargo"
+
+format:
+  stage: format
+  tags:
+    - docker
+  image: rust:latest
+  before_script:
+    - git submodule update --init
+    - mkdir -p $CARGO_HOME
+    - cargo install typstyle --version "$TYPSTYLE_VERSION" --locked
+  script:
+    - "$CARGO_HOME/bin/typstyle --verbose --check defense.typ globals.typ slides master"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH
+      changes:
+        - "**/*.typ"
+
+build:
+  stage: build
+  tags:
+    - docker
+  image: rust:latest
+  before_script:
+    - apt update
+    - apt install fonts-linuxlibertine
+    - git submodule update --init
+    - mkdir -p $CARGO_HOME
+    - cargo install typst-cli --version "$TYPST_VERSION" --locked
+  script:
+    - "$CARGO_HOME/bin/typst compile \"$TYPST_ENTRY\" \"$TYPST_OUTPUT\""
+  artifacts:
+    paths:
+      - "$TYPST_OUTPUT"
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH
+      changes:
+        - "**/*.typ"
